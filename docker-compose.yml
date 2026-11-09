@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: aula_viva
+      POSTGRES_USER: aula_admin
+      POSTGRES_PASSWORD: aula_admin_local
+    volumes:
+      - aula_viva_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aula_admin -d aula_viva"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  app:
+    build: .
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/aula_viva
+      DB_USER: aula_reader
+      DB_PASSWORD: aula_reader_local
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  aula_viva_data:

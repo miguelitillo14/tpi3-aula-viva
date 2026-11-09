@@ -1,0 +1,223 @@
+\documentclass[a4paper,12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage{lmodern,microtype}
+\usepackage[a4paper,top=2.5cm,bottom=2.5cm,left=2.7cm,right=2.7cm]{geometry}
+\usepackage{setspace}
+\setstretch{1.15}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.65em}
+\usepackage{xcolor}
+\definecolor{LoyolaBlue}{HTML}{082B66}
+\definecolor{LoyolaCyan}{HTML}{5CC8DF}
+\definecolor{SoftBlue}{HTML}{EEF5FA}
+\definecolor{SoftGray}{HTML}{F5F6F7}
+\definecolor{TextGray}{HTML}{374151}
+\usepackage{graphicx,booktabs,array,tabularx,longtable,enumitem,float,caption,subcaption}
+\usepackage{listings}
+\lstdefinestyle{codigo}{
+  basicstyle=\ttfamily\small,backgroundcolor=\color{SoftGray},
+  frame=single,rulecolor=\color{LoyolaBlue!35},numbers=left,
+  numberstyle=\tiny\color{TextGray},numbersep=8pt,breaklines=true,
+  showstringspaces=false,tabsize=2,captionpos=b,
+  keywordstyle=\color{LoyolaBlue}\bfseries,
+  commentstyle=\color{green!45!black},stringstyle=\color{orange!60!black}
+}
+\lstset{style=codigo}
+\usepackage{amsmath,amssymb,url}
+\usepackage[hidelinks]{hyperref}
+\hypersetup{colorlinks=true,linkcolor=LoyolaBlue,urlcolor=LoyolaBlue,
+  citecolor=LoyolaBlue,pdftitle={TPI 3: Acceso a datos en Aula Viva},
+  pdfauthor={Miguel Garcia Galan}}
+\usepackage{fancyhdr,lastpage}
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{\small\textcolor{LoyolaBlue}{Ampliación de Bases de Datos}}
+\fancyhead[R]{\small\textcolor{TextGray}{Curso 2026/2027}}
+\fancyfoot[L]{\small Universidad Loyola Andalucía}
+\fancyfoot[R]{\small Página \thepage\ de \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.6pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{LoyolaCyan}\leaders\hrule height \headrulewidth\hfill}}
+\renewcommand{\footrulewidth}{0pt}
+\usepackage{titlesec}
+\titleformat{\section}{\Large\bfseries\color{LoyolaBlue}}{\thesection.}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{LoyolaBlue}}{\thesubsection.}{0.6em}{}
+
+\newcommand{\TPINumero}{TPI 3}
+\newcommand{\TPITitulo}{Acceso a datos en Aula Viva: JDBC y arquitectura de tres niveles}
+\newcommand{\Estudiante}{Miguel Garcia Galan}
+\newcommand{\FechaEntrega}{09/11/2026}
+\newcommand{\Profesor}{Dr. Anier Soria Lorente}
+
+\begin{document}
+\begin{titlepage}
+  \thispagestyle{empty}
+  \begin{center}
+    \includegraphics[width=0.72\textwidth]{logo_uloyola.png}\par
+    \vspace{1.2cm}
+    {\Large\bfseries\color{LoyolaBlue} Ampliación de Bases de Datos\par}
+    \vspace{0.35cm}
+    {\large Grado en Ingeniería del Software\par}
+    {\large Curso académico 2026/2027\par}
+    \vspace{1.5cm}
+    \colorbox{SoftBlue}{\parbox{0.88\textwidth}{\centering\vspace{0.6cm}
+      {\LARGE\bfseries\color{LoyolaBlue}\TPINumero\par}
+      \vspace{0.35cm}
+      {\Large\bfseries\TPITitulo\par}
+      \vspace{0.6cm}}}
+    \par\vfill
+    \begin{tabular}{>{\bfseries}p{4.0cm} p{9.2cm}}
+      Estudiante: & \Estudiante \\
+      Profesor: & \Profesor \\
+      Fecha: & \FechaEntrega \\
+      Repositorio: & \url{https://github.com/miguelitillo14/tpi3-aula-viva} \\
+    \end{tabular}\par
+    \vfill
+    {\small\color{TextGray} Universidad Loyola Andalucía}
+  \end{center}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+\section{Problema real y contexto}
+Aula Viva es una propuesta de aplicación para que los estudiantes consulten espacios de estudio del campus y sus informes recientes de ocupación y ruido. Para utilizarla, la aplicación debe leer información persistente del catálogo de espacios y de las observaciones registradas. El TPI 2 abordó la integración analítica de esas fuentes con Spark SQL; este trabajo estudia el acceso de una aplicación a la base relacional que sirve la información de consulta.
+
+El problema concreto es ofrecer a la aplicación una interfaz estable y de solo lectura para consultar el estado reciente de un espacio, sin exponer directamente la estructura interna de la base ni conceder permisos de escritura a la cuenta de consulta. La demostración emplea PostgreSQL y datos sintéticos. No representa una conexión al sistema real del campus ni utiliza datos personales.
+
+\section{Necesidad relacionada con los datos y objetivos}
+\subsection{Necesidad identificada}
+La aplicación necesita localizar espacios y recuperar su estado más reciente de forma segura y comprensible. Para ello hay que separar la interfaz que consume el usuario de la representación relacional y del almacenamiento físico, y definir un mecanismo de conexión que no mezcle datos del usuario con el texto SQL.
+
+\subsection{Objetivo general}
+Diseñar y demostrar un prototipo de acceso de solo lectura a PostgreSQL para Aula Viva, explicando los niveles externo, conceptual e interno, y aplicando JDBC desde una aplicación Java.
+
+\subsection{Objetivos específicos}
+\begin{itemize}[leftmargin=1.2cm]
+  \item Modelar espacios e informes mediante claves, restricciones y una relación uno a muchos.
+  \item Publicar una vista externa que entregue a la aplicación solo los campos necesarios.
+  \item Consultar esa vista con JDBC y parámetros preparados.
+  \item Distinguir independencia lógica y física mediante cambios posibles que preservan el contrato de consulta.
+  \item Obtener y analizar resultados reproducibles con datos de demostración.
+\end{itemize}
+
+\section{Conceptos y tecnologías aplicadas}
+\subsection{Arquitectura de tres niveles}
+El nivel externo es la vista \texttt{app.vw\_student\_space\_status}: presenta el nombre del espacio, capacidad, ocupación, ruido, hora del informe y plazas estimadas disponibles. Es el contrato que consume la aplicación. El nivel conceptual lo forman las entidades \texttt{space} y \texttt{report}, sus atributos, claves, relación y restricciones. El nivel interno incluye los tipos físicos de PostgreSQL, sus páginas y los índices B-tree definidos para las consultas.
+
+\subsection{Independencia de datos}
+La independencia lógica permite cambiar el esquema conceptual sin obligar a cambiar al consumidor, siempre que se mantenga la vista externa acordada. Por ejemplo, se podrían separar atributos de edificio en otra tabla y conservar la vista mediante una unión. La independencia física permite cambiar índices o parámetros de almacenamiento sin alterar tablas lógicas ni la salida de la vista. En la demostración se crea un índice compuesto para la búsqueda del último informe; la aplicación sigue ejecutando la misma consulta.
+
+\subsection{JDBC, ODBC y ORM}
+La implementación usa JDBC, la API estándar de Java para abrir una conexión, preparar SQL y leer filas. Los valores del filtro de espacio se envían como parámetros de \texttt{PreparedStatement}, no se concatenan en la consulta. ODBC es una interfaz alternativa, especialmente útil para herramientas o lenguajes distintos de Java; no se implementa aquí porque la aplicación de ejemplo está escrita en Java.
+
+Hibernate es un ORM que puede mapear filas y relaciones a objetos de dominio y reducir operaciones repetitivas de persistencia. En este prototipo se elige JDBC directo para que se vean con claridad la consulta, los permisos y la vista externa. Hibernate sería una alternativa para una aplicación con más entidades y lógica de persistencia; no forma parte de la ejecución presentada.
+
+\section{Desarrollo del trabajo}
+\subsection{Diseño de la solución}
+El flujo de lectura es: aplicación Java \(\rightarrow\) JDBC \(\rightarrow\) vista externa de PostgreSQL \(\rightarrow\) tablas relacionales. La aplicación se conecta como rol \texttt{aula\_reader}, que solo tiene permiso de lectura sobre la vista. El usuario administrador crea el esquema, las tablas, las restricciones, los datos sintéticos y el índice. La cuenta de lectura no recibe permisos sobre las tablas base.
+
+\begin{center}\small
+\begin{tabularx}{\textwidth}{lXX}\toprule
+Nivel & Elemento en Aula Viva & Responsabilidad \\\midrule
+Externo & \texttt{vw\_student\_space\_status} & Contrato de consulta limitado para la aplicación \\
+Conceptual & \texttt{space}, \texttt{report}, clave foránea y restricciones & Representar espacios y observaciones \\
+Interno & Tipos PostgreSQL, páginas e índices B-tree & Organizar y acelerar el acceso físico \\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{Implementación}
+El script \texttt{db/init/001\_schema.sql} crea dos tablas: cada espacio puede tener varios informes, y cada informe referencia un espacio existente. Las restricciones limitan la ocupación a \([0,1]\), el ruido a un rango definido para la muestra y la capacidad a valores positivos. La vista calcula el informe más reciente por espacio. El índice compuesto sobre \texttt{(space\_id, reported\_at, report\_id)} apoya el patrón temporal de consulta.
+
+La clase Java lee los parámetros de conexión de variables de entorno, abre JDBC con \texttt{DriverManager}, usa \texttt{PreparedStatement} y cierra los recursos con \texttt{try-with-resources}. Un argumento opcional permite filtrar por identificador de espacio. Docker Compose prepara PostgreSQL y ejecuta el cliente. Las credenciales declaradas en \texttt{docker-compose.yml} son valores públicos de demostración para el entorno local; no son secretos reales y no deben reutilizarse en producción.
+
+\begin{lstlisting}[language=Java,caption={Consulta parametrizada de la vista externa}]
+String sql = """
+    SELECT space_id, building, space_name, capacity,
+           occupancy_ratio, noise_db, reported_at, available_places
+    FROM app.vw_student_space_status
+    WHERE space_id = ?
+    """;
+try (Connection connection = DriverManager.getConnection(url, user, password)) {
+    connection.setReadOnly(true);
+    try (PreparedStatement statement = connection.prepareStatement(sql)) {
+        statement.setString(1, spaceId);
+        try (ResultSet result = statement.executeQuery()) {
+            while (result.next()) {
+                System.out.println(result.getString("space_id")
+                    + " | " + result.getString("space_name")
+                    + " | " + result.getBigDecimal("occupancy_ratio"));
+            }
+        }
+    }
+}
+\end{lstlisting}
+
+\section{Resultados obtenidos}
+La carga inicial contiene cuatro espacios y siete informes sintéticos; A101, A102 y B201 tienen más de un informe. La vista devuelve un solo estado vigente por espacio. La ejecución comprobada del cliente sin filtro devolvió cuatro filas; al consultar \texttt{A101}, devolvió el informe \texttt{R002}, con ocupación \(0{,}80\), ruido de \(50\) dB y 6 plazas estimadas disponibles. La consulta de un identificador inexistente devuelve cero filas sin error.
+
+\begin{center}\small
+\begin{tabular}{llllrr}\toprule
+Espacio & Informe & Edificio & Capacidad & Ocupación & Libres \\\midrule
+A101 & R002 & A & 30 & 0,80 & 6 \\
+A102 & R007 & A & 20 & 0,25 & 15 \\
+B201 & R006 & B & 15 & 0,50 & 7 \\
+C101 & R005 & C & 40 & 0,90 & 4 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+La salida real incluyó los cuatro estados de la tabla y terminó con código 0. La consulta filtrada de \texttt{A101} devolvió una fila con R002. Estos resultados permiten comprobar la selección del último informe, la relación entre tablas y el consumo desde JDBC de una vista. No son mediciones reales del campus ni una evaluación de carga o rendimiento a escala.
+
+\section{Análisis e interpretación}
+La vista ofrece una forma de acceso más estable que consultar directamente tablas: puede conservar sus columnas aunque cambie la organización interna, siempre que se mantenga el contrato. El rol de lectura limita el daño potencial de una consulta mal planteada. El uso de parámetros evita construir SQL con texto aportado por el usuario. El índice se justifica por el acceso que busca el último informe de un espacio, pero su beneficio no se ha medido en esta muestra pequeña.
+
+El prototipo no implementa autenticación de estudiantes, una interfaz web, JDBC con el sistema institucional real, ODBC ni Hibernate. Tampoco prueba una migración de esquema ni una carga concurrente. Esas funciones requieren decisiones y sistemas fuera del alcance de esta demostración; la defensa debe distinguir el comportamiento ejecutado de las extensiones propuestas.
+
+\section{Decisiones tomadas y justificación}
+\begin{itemize}[leftmargin=1.2cm]
+  \item \textbf{PostgreSQL:} permite definir relaciones, restricciones, vistas e índices en una base relacional reproducible localmente.
+  \item \textbf{JDBC:} es el mecanismo directo de acceso desde Java y permite mostrar explícitamente conexión, consulta parametrizada y lectura del resultado.
+  \item \textbf{Vista externa de solo lectura:} desacopla al consumidor de tablas internas y restringe los campos expuestos.
+  \item \textbf{Datos sintéticos:} permiten repetir la prueba sin acceder a información privada del campus.
+  \item \textbf{Hibernate y ODBC como alternativas:} se explican para comparar sus papeles, pero no se añaden dependencias que no son necesarias en este cliente pequeño.
+\end{itemize}
+
+\section{Conclusiones y aprendizaje}
+El prototipo conecta una aplicación Java con PostgreSQL mediante JDBC y consulta un contrato externo de solo lectura. La separación entre vista, tablas relacionales y almacenamiento físico permite explicar los tres niveles y razonar sobre la independencia lógica y física. Las claves y restricciones protegen la relación entre espacios e informes; la consulta preparada filtra de forma segura y la vista entrega el último estado conocido.
+
+La prueba demuestra el acceso funcional con datos sintéticos. No demuestra una integración con la infraestructura real del campus ni ventajas de rendimiento del índice. Para evolucionar el sistema habría que validar el contrato con el responsable de los datos, desplegar credenciales gestionadas y medir consultas con una carga representativa.
+
+\section{Declaración de uso de inteligencia artificial}
+Se utilizó ChatGPT como apoyo para organizar la memoria, revisar la relación del caso con las orientaciones del TPI 3 y preparar un primer prototipo y datos de demostración. El estudiante debe revisar, ejecutar y comprender el código y corregir esta declaración si el uso real de herramientas difiere de lo descrito.
+
+\addcontentsline{toc}{section}{Referencias}
+\begin{thebibliography}{9}
+\bibitem{orientaciones}
+Soria Lorente, A., \textit{Trabajos Prácticos Individuales: Orientaciones para el alumnado, Ampliación de Bases de Datos, curso 2026/2027}, Universidad Loyola Andalucía, apartado 7: TPI 3, Tema 6.
+
+\bibitem{postgres}
+PostgreSQL Global Development Group, \textit{PostgreSQL 16 Documentation}. \url{https://www.postgresql.org/docs/16/}
+
+\bibitem{jdbc}
+Oracle, \textit{JDBC Database Access: Prepared Statements}. \url{https://docs.oracle.com/javase/tutorial/jdbc/basics/prepared.html}
+
+\bibitem{hibernate}
+Hibernate, \textit{Hibernate ORM 6.6 User Guide}. \url{https://docs.hibernate.org/orm/6.6/userguide/html_single/}
+
+\bibitem{propuesta}
+Garcia Galan, M., \textit{Aula Viva: propuesta inicial del proyecto}, Universidad Loyola Andalucía, 2026.
+\end{thebibliography}
+
+\appendix
+\section{Reproducción del prototipo}
+Desde PowerShell, situado en la carpeta del proyecto, ejecutar:
+\begin{lstlisting}[language=bash,caption={Arranque y consulta desde PowerShell}]
+docker compose up --build --abort-on-container-exit
+docker compose run --rm app A101
+docker compose down
+\end{lstlisting}
+El primer arranque descarga las imágenes y compila el cliente Java dentro del contenedor. El primer comando muestra los cuatro estados y detiene los servicios al terminar el cliente. El segundo inicia la base de datos si es necesario y muestra solo A101. El último cierra los servicios y conserva el volumen de demostración.
+
+\end{document}
