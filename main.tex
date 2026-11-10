@@ -106,7 +106,7 @@ Diseñar y demostrar un prototipo de acceso de solo lectura a PostgreSQL para Au
 El nivel externo es la vista \texttt{app.vw\_student\_space\_status}: presenta el nombre del espacio, capacidad, ocupación, ruido, hora del informe y plazas estimadas disponibles. Es el contrato que consume la aplicación. El nivel conceptual lo forman las entidades \texttt{space} y \texttt{report}, sus atributos, claves, relación y restricciones. El nivel interno incluye los tipos físicos de PostgreSQL, sus páginas y los índices B-tree definidos para las consultas.
 
 \subsection{Independencia de datos}
-La independencia lógica permite cambiar el esquema conceptual sin obligar a cambiar al consumidor, siempre que se mantenga la vista externa acordada. Por ejemplo, se podrían separar atributos de edificio en otra tabla y conservar la vista mediante una unión. La independencia física permite cambiar índices o parámetros de almacenamiento sin alterar tablas lógicas ni la salida de la vista. En la demostración se crea un índice compuesto para la búsqueda del último informe; la aplicación sigue ejecutando la misma consulta.
+La independencia lógica permite cambiar el esquema conceptual sin obligar a cambiar al consumidor, siempre que se mantenga la vista externa acordada. Por ejemplo, se podrían separar atributos de edificio en otra tabla y conservar la vista mediante una unión. La independencia física permite cambiar índices o parámetros de almacenamiento sin alterar tablas lógicas ni la salida de la vista. En la demostración se crea un índice B-tree compuesto para la búsqueda del último informe; la aplicación sigue ejecutando la misma consulta.
 
 \subsection{JDBC, ODBC y ORM}
 La implementación usa JDBC, la API estándar de Java para abrir una conexión, preparar SQL y leer filas. Los valores del filtro de espacio se envían como parámetros de \texttt{PreparedStatement}, no se concatenan en la consulta. ODBC es una interfaz alternativa, especialmente útil para herramientas o lenguajes distintos de Java; no se implementa aquí porque la aplicación de ejemplo está escrita en Java.
@@ -128,7 +128,7 @@ Interno & Tipos PostgreSQL, páginas e índices B-tree & Organizar y acelerar el
 \end{center}
 
 \subsection{Implementación}
-El script \texttt{db/init/001\_schema.sql} crea dos tablas: cada espacio puede tener varios informes, y cada informe referencia un espacio existente. Las restricciones limitan la ocupación a \([0,1]\), el ruido a un rango definido para la muestra y la capacidad a valores positivos. La vista calcula el informe más reciente por espacio. El índice compuesto sobre \texttt{(space\_id, reported\_at, report\_id)} apoya el patrón temporal de consulta.
+El script \texttt{db/init/001\_schema.sql} crea dos tablas: cada espacio puede tener varios informes, y cada informe referencia un espacio existente. Las restricciones limitan la ocupación a \([0,1]\), el ruido a un rango definido para la muestra y la capacidad a valores positivos. La vista calcula el informe más reciente por espacio. El índice B-tree compuesto sobre \texttt{(space\_id, reported\_at DESC, report\_id DESC)} apoya el patrón temporal de consulta.
 
 La clase Java lee los parámetros de conexión de variables de entorno, abre JDBC con \texttt{DriverManager}, usa \texttt{PreparedStatement} y cierra los recursos con \texttt{try-with-resources}. Un argumento opcional permite filtrar por identificador de espacio. Docker Compose prepara PostgreSQL y ejecuta el cliente. Las credenciales declaradas en \texttt{docker-compose.yml} son valores públicos de demostración para el entorno local; no son secretos reales y no deben reutilizarse en producción.
 
@@ -190,7 +190,7 @@ El prototipo conecta una aplicación Java con PostgreSQL mediante JDBC y consult
 La prueba demuestra el acceso funcional con datos sintéticos. No demuestra una integración con la infraestructura real del campus ni ventajas de rendimiento del índice. Para evolucionar el sistema habría que validar el contrato con el responsable de los datos, desplegar credenciales gestionadas y medir consultas con una carga representativa.
 
 \section{Declaración de uso de inteligencia artificial}
-Se utilizó ChatGPT como apoyo para organizar la memoria, revisar la relación del caso con las orientaciones del TPI 3 y preparar un primer prototipo y datos de demostración. El estudiante debe revisar, ejecutar y comprender el código y corregir esta declaración si el uso real de herramientas difiere de lo descrito.
+Se utilizó ChatGPT como apoyo para organizar y revisar la memoria, y para preparar el prototipo y los datos sintéticos. El código y los resultados descritos se comprobaron mediante la ejecución local del proyecto. El autor es responsable del contenido final.
 
 \addcontentsline{toc}{section}{Referencias}
 \begin{thebibliography}{9}
