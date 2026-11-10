@@ -51,4 +51,5 @@ JDBC es el mecanismo implementado. ODBC y Hibernate se describen en la memoria c
 - src/main/java/es/uloyola/aulaviva/Main.java: cliente JDBC.
 - pom.xml, Dockerfile, docker-compose.yml: compilación y ejecución.
 - logo_uloyola.png: logotipo necesario para compilar la memoria.
-- TPI3_Aula_Viva_FINAL.pdf: memoria final lista para entregar.
+- TPI3.pdf: memoria final lista para entregar.
+
